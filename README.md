@@ -1,7 +1,9 @@
 ```markdown:README.md
 # Tables Manager
 
-A Python service for managing IP blacklists using nftables or iptables on Linux systems. This service automatically downloads and maintains a list of blocked IP addresses, providing efficient packet filtering and threat protection.
+A Python service for managing IP blacklists using nftables or iptables on Linux systems. This service
+automatically downloads and maintains a list of blocked IP addresses, providing efficient packet
+filtering and threat protection.
 
 ## Features
 
