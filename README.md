@@ -158,8 +158,7 @@ Handles various failure scenarios:
 5. Create a new Pull Request
 
 ## License
-
-[Your License Here]
+MIT
 
 ## Author
 
