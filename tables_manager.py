@@ -121,8 +121,8 @@ def setup_iptables() -> bool:
 def update_firewall_rules(ips_to_add: Set[str], ips_to_remove: Set[str]) -> bool:
     """Update firewall rules using either nftables or iptables."""
     success = True
-    BATCH_SIZE = 100  # Process IPs in batches of 100
-    
+    BATCH_SIZE = 50  # Reduce batch size to 50 for testing
+
     if FIREWALL_TYPE == "nftables":
         try:
             # Handle removals in batches
@@ -130,7 +130,7 @@ def update_firewall_rules(ips_to_add: Set[str], ips_to_remove: Set[str]) -> bool
             for i in range(0, len(remove_list), BATCH_SIZE):
                 batch = remove_list[i:i + BATCH_SIZE]
                 if batch:  # Only proceed if we have IPs to remove
-                    remove_elements = ', '.join(batch)  # Changed from comma without space
+                    remove_elements = ', '.join(batch)
                     try:
                         subprocess.run([
                             'nft', 'delete', 'element', 'inet', 'filter', 'blacklist',
@@ -139,13 +139,15 @@ def update_firewall_rules(ips_to_add: Set[str], ips_to_remove: Set[str]) -> bool
                         logger.info(f"Removed {len(batch)} IPs from blacklist")
                     except subprocess.CalledProcessError as e:
                         logger.warning(f"Some IPs couldn't be removed: {e}")
+                        # Log the specific IPs that failed
+                        logger.debug(f"Failed to remove IPs: {batch}")
 
             # Handle additions in batches
             add_list = list(ips_to_add)
             for i in range(0, len(add_list), BATCH_SIZE):
                 batch = add_list[i:i + BATCH_SIZE]
                 if batch:  # Only proceed if we have IPs to add
-                    add_elements = ', '.join(batch)  # Changed from comma without space
+                    add_elements = ', '.join(batch)
                     try:
                         subprocess.run([
                             'nft', 'add', 'element', 'inet', 'filter', 'blacklist',
@@ -315,11 +317,26 @@ def get_drop_statistics() -> dict:
         }
         
         # Parse set size
+        elements = []
+        in_elements_section = False
         for line in set_result.stdout.splitlines():
             if 'elements = {' in line:
-                # Count non-empty elements
-                elements = line.split('{')[1].split('}')[0].strip()
-                stats['active_ips'] = len([x for x in elements.split(',') if x.strip()])
+                in_elements_section = True
+                # Start collecting elements
+                elements_part = line.split('{', 1)[1].strip()
+                elements.append(elements_part)
+            elif in_elements_section:
+                # Continue collecting elements until the closing brace
+                if '}' in line:
+                    elements_part = line.rsplit('}', 1)[0].strip()
+                    elements.append(elements_part)
+                    break
+                else:
+                    elements.append(line.strip())
+        
+        # Join all parts and split by comma to count IPs
+        all_elements = ','.join(elements)
+        stats['active_ips'] = len([x.strip() for x in all_elements.split(',') if x.strip()])
         
         # Parse counter values
         for line in result.stdout.splitlines():
@@ -554,3 +571,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main() 
+
